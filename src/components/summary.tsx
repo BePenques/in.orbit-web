@@ -4,15 +4,18 @@ import { DialogTrigger } from './ui/dialog'
 import { InOrbitIcon } from './in-orbit-icon'
 import { Progress, ProgressIndicator } from './ui/progress-bar'
 import { Separator } from './ui/separator'
-import { useQuery } from '@tanstack/react-query'
 import { getSummary } from '../http/get-summary'
 import dayjs from 'dayjs'
 import ptBR from 'dayjs/locale/pt-BR'
 import { PendingGoals } from './pending-goal'
+import { useQuery, useQueryClient } from '@tanstack/react-query'
+import { deleteGoalCompletion } from '../http/delete-goal-completion'
 
 dayjs.locale(ptBR)
 
 export function Summary() {
+  const queryClient = useQueryClient()
+
   const { data } = useQuery({
     queryKey: ['summary'],
     queryFn: getSummary,
@@ -26,6 +29,14 @@ export function Summary() {
   const lastDayOfWeek = dayjs().endOf('week').format('D MMM')
 
   const completedPercentage = Math.round((data.completed * 100) / data.total)
+
+  async function handleDeleteGoalCompletion(goalId: string) {
+    await deleteGoalCompletion(goalId)
+
+    queryClient.invalidateQueries({ queryKey: ['summary'] }) //atualizar o carregamento de summary
+    queryClient.invalidateQueries({ queryKey: ['pendingGoals'] })
+  }
+
   return (
     <div className="py-10 max-w-[480px] px-5 mx-auto flex flex-col gap-6">
       <div className="flex items-center justify-between">
@@ -79,10 +90,17 @@ export function Summary() {
                   return (
                     <li key={goal.id} className="flex items-center gap-2">
                       <CheckCircle2 className="size-4 text-pink-500" />
-                      <span className="text-sm text-zinc-400">
+                      <span className=" flex - flex-row text-sm text-zinc-400">
                         Você completou "
                         <span className="text-zinc-100">{goal.title}</span>" às{' '}
                         <span className="text-zinc-100">{time}h</span>
+                        {/* biome-ignore lint/a11y/useKeyWithClickEvents: <explanation> */}
+                        <p
+                          onClick={() => handleDeleteGoalCompletion(goal.id)}
+                          className="ml-1 underline cursor-pointer text-zinc-500"
+                        >
+                          Desfazer
+                        </p>
                       </span>
                     </li>
                   )
